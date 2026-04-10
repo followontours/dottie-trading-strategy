@@ -1,85 +1,123 @@
 "use client";
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 
 /*
-  CORRECT AMTV VALUES — scraped LIVE from AdoptMeTradingValues.com 2 Apr 2026
-  Frost Dragon = 166 RP = 1.0 Frosts
-  StarPets prices scraped 1-2 Apr 2026
+  ALL 115 AMTV PETS — scraped LIVE from AdoptMeTradingValues.com 10 Apr 2026
+  Frost Dragon = 170 RP = 1.024 Frosts (values shifted since last scrape)
+  StarPets prices from scanner where available
 */
 
-// All pets: name, AMTV value in Frosts, StarPets cheapest EUR, rarity, demand, emoji
-// sp=null means not found on StarPets at time of scrape
 const P = [
-  // S+ Tier — Top Legendaries
-  { n:"Bat Dragon", v:2.892, sp:230, d:10, r:"Legendary", i:"🦇" },
-  { n:"Shadow Dragon", v:1.892, sp:159.82, d:10, r:"Legendary", i:"🐉" },
-  { n:"Giraffe", v:1.289, sp:null, d:9.5, r:"Legendary", i:"🦒" },
-  { n:"Frost Dragon", v:1.0, sp:83.3, d:9.5, r:"Legendary", i:"❄️" },
+  // S+ Tier
+  { n:"Bat Dragon", v:2.964, sp:230, d:10, r:"Legendary", i:"🦇" },
+  { n:"Shadow Dragon", v:1.904, sp:159.82, d:10, r:"Legendary", i:"🐉" },
+  { n:"Giraffe", v:1.313, sp:null, d:9.5, r:"Legendary", i:"🦒" },
+  { n:"Frost Dragon", v:1.024, sp:83.3, d:9.5, r:"Legendary", i:"❄️" },
   // S Tier
-  { n:"Owl", v:0.831, sp:77.44, d:9, r:"Legendary", i:"🦉" },
-  { n:"Parrot", v:0.663, sp:56, d:9, r:"Legendary", i:"🦜" },
-  { n:"Crow", v:0.566, sp:51, d:8.5, r:"Legendary", i:"🐦‍⬛" },
-  { n:"African Wild Dog", v:0.518, sp:null, d:7.5, r:"Ultra-Rare", i:"🐕" },
-  { n:"Balloon Unicorn", v:0.458, sp:null, d:7, r:"Legendary", i:"🎈" },
+  { n:"Safari Egg", v:0.904, sp:null, d:7, r:"Legendary", i:"🥚" },
+  { n:"Owl", v:0.855, sp:77.44, d:9, r:"Legendary", i:"🦉" },
+  { n:"Parrot", v:0.687, sp:56, d:9, r:"Legendary", i:"🦜" },
+  { n:"Crow", v:0.59, sp:51, d:8.5, r:"Legendary", i:"🐦‍⬛" },
+  { n:"African Wild Dog", v:0.554, sp:null, d:7.5, r:"Ultra-Rare", i:"🐕" },
+  { n:"Balloon Unicorn", v:0.506, sp:null, d:7, r:"Legendary", i:"🎈" },
+  { n:"Evil Unicorn", v:0.446, sp:36.6, d:8.5, r:"Legendary", i:"🦄" },
   { n:"Giant Panda", v:0.434, sp:null, d:7, r:"Legendary", i:"🐼" },
-  { n:"Evil Unicorn", v:0.422, sp:36.6, d:8.5, r:"Legendary", i:"🦄" },
+  { n:"Farm Egg", v:0.398, sp:null, d:7, r:"Legendary", i:"🥚" },
+  { n:"Cryptid", v:0.373, sp:null, d:7, r:"Legendary", i:"🦕" },
   // A Tier
-  { n:"Cryptid", v:0.349, sp:null, d:7, r:"Legendary", i:"🦕" },
-  { n:"Haetae", v:0.265, sp:null, d:7, r:"Legendary", i:"🐲" },
-  { n:"Hedgehog", v:0.253, sp:20, d:8, r:"Ultra-Rare", i:"🦔" },
-  { n:"Blazing Lion", v:0.241, sp:null, d:7, r:"Legendary", i:"🦁" },
-  { n:"Diamond Butterfly", v:0.235, sp:null, d:6.5, r:"Legendary", i:"🦋" },
-  { n:"Orchid Butterfly", v:0.217, sp:null, d:6.5, r:"Legendary", i:"🦋" },
-  { n:"Dalmatian", v:0.211, sp:18, d:8, r:"Ultra-Rare", i:"🐾" },
+  { n:"Haetae", v:0.301, sp:null, d:7, r:"Legendary", i:"🐲" },
+  { n:"Hedgehog", v:0.265, sp:20, d:8, r:"Ultra-Rare", i:"🦔" },
+  { n:"Blazing Lion", v:0.241, sp:null, d:7, r:"Legendary", i:"🔥" },
+  { n:"Dalmatian", v:0.223, sp:18, d:8, r:"Ultra-Rare", i:"🐾" },
+  { n:"Blue Egg", v:0.211, sp:15.18, d:7, r:"Rare", i:"🥚" },
   { n:"Arctic Reindeer", v:0.187, sp:17.35, d:8, r:"Legendary", i:"🦌" },
-  { n:"Cow", v:0.133, sp:9.5, d:8, r:"Rare", i:"🐄" },
+  { n:"Cow", v:0.139, sp:9.5, d:8, r:"Rare", i:"🐄" },
+  { n:"Pink Egg", v:0.139, sp:null, d:6.5, r:"Rare", i:"🥚" },
   { n:"Pelican", v:0.133, sp:null, d:6.5, r:"Ultra-Rare", i:"🐦" },
+  { n:"Tortoiseshell Guinea Pig", v:0.12, sp:null, d:6.5, r:"Legendary", i:"🐹" },
+  { n:"Chocolate Chip Bat Dragon", v:0.108, sp:null, d:7, r:"Legendary", i:"🍫" },
   { n:"Mini Pig", v:0.116, sp:null, d:6.5, r:"Ultra-Rare", i:"🐷" },
   { n:"Peppermint Penguin", v:0.108, sp:null, d:6.5, r:"Ultra-Rare", i:"🐧" },
-  { n:"Monkey King", v:0.101, sp:6.99, d:7, r:"Legendary", i:"🐵" },
-  { n:"Flamingo", v:0.087, sp:7.94, d:7.5, r:"Ultra-Rare", i:"🦩" },
-  { n:"Cabbit", v:0.082, sp:null, d:6.5, r:"Ultra-Rare", i:"🐰" },
-  { n:"Kangaroo", v:0.08, sp:6.7, d:7, r:"Legendary", i:"🦘" },
+  { n:"Monkey King", v:0.101, sp:7.69, d:7, r:"Legendary", i:"🐵" },
+  { n:"Flamingo", v:0.092, sp:7.94, d:7.5, r:"Ultra-Rare", i:"🦩" },
+  { n:"Cabbit", v:0.089, sp:null, d:6.5, r:"Ultra-Rare", i:"🐰" },
+  { n:"Kangaroo", v:0.084, sp:6.7, d:7, r:"Legendary", i:"🦘" },
+  { n:"Goose", v:0.08, sp:null, d:6.5, r:"Rare", i:"🪿" },
   { n:"Albino Monkey", v:0.075, sp:6.02, d:7.5, r:"Legendary", i:"🐒" },
-  { n:"Goose", v:0.072, sp:null, d:6.5, r:"Rare", i:"🪿" },
   // B Tier
-  { n:"Candyfloss Chick", v:0.07, sp:null, d:6, r:"Legendary", i:"🐣" },
+  { n:"Candyfloss Chick", v:0.072, sp:null, d:6, r:"Legendary", i:"🐣" },
   { n:"Sugar Glider", v:0.065, sp:null, d:6, r:"Legendary", i:"🐿️" },
-  { n:"Crocodile", v:0.063, sp:4.62, d:6.5, r:"Ultra-Rare", i:"🐊" },
+  { n:"Crocodile", v:0.063, sp:4.9, d:6.5, r:"Ultra-Rare", i:"🐊" },
   { n:"Lion", v:0.06, sp:4.26, d:7, r:"Ultra-Rare", i:"🦁" },
   { n:"Frost Unicorn", v:0.058, sp:null, d:6, r:"Legendary", i:"🦄" },
   { n:"Border Collie", v:0.055, sp:null, d:6, r:"Rare", i:"🐕" },
+  { n:"Silverback Gorilla", v:0.053, sp:3.0, d:6, r:"Legendary", i:"🦍" },
+  { n:"Irish Water Spaniel", v:0.048, sp:2.57, d:6, r:"Ultra-Rare", i:"🐕" },
   { n:"Turtle", v:0.048, sp:9.41, d:7, r:"Legendary", i:"🐢" },
+  { n:"Frostbite Bear", v:0.046, sp:2.87, d:6, r:"Legendary", i:"🐻‍❄️" },
+  { n:"Dragonfruit Fox", v:0.045, sp:2.54, d:6, r:"Legendary", i:"🦊" },
   { n:"Elephant", v:0.043, sp:5.2, d:7, r:"Rare", i:"🐘" },
+  { n:"Alpaca", v:0.043, sp:null, d:6, r:"Ultra-Rare", i:"🦙" },
   { n:"Cupid Dragon", v:0.043, sp:null, d:6, r:"Legendary", i:"💘" },
+  { n:"Bush Elephant", v:0.042, sp:null, d:6, r:"Legendary", i:"🐘" },
   { n:"Winged Tiger", v:0.042, sp:null, d:6, r:"Legendary", i:"🐯" },
+  { n:"Field Mouse", v:0.041, sp:null, d:5.5, r:"Legendary", i:"🐭" },
+  { n:"Strawberry Penguin", v:0.04, sp:null, d:6, r:"Legendary", i:"🐧" },
   { n:"Blue Dog", v:0.039, sp:3.27, d:7, r:"Uncommon", i:"🐕" },
+  { n:"Pirate Ghost Capuchin Monkey", v:0.039, sp:null, d:6, r:"Legendary", i:"🏴‍☠️" },
+  { n:"Papa Moose", v:0.037, sp:1.78, d:6, r:"Legendary", i:"🫎" },
   { n:"Pink Cat", v:0.037, sp:3.27, d:7, r:"Uncommon", i:"🐱" },
   { n:"Pig", v:0.036, sp:2.2, d:7, r:"Rare", i:"🐷" },
+  { n:"Dango Penguins", v:0.036, sp:2.0, d:6, r:"Legendary", i:"🐧" },
+  { n:"Red Dutch Guinea Pig", v:0.034, sp:null, d:5.5, r:"Legendary", i:"🐹" },
   { n:"Frost Fury", v:0.034, sp:1.76, d:6.5, r:"Legendary", i:"🧊" },
+  { n:"Moose Calf", v:0.033, sp:2.35, d:5.5, r:"Legendary", i:"🫎" },
   { n:"Meerkat", v:0.031, sp:2.48, d:6.5, r:"Uncommon", i:"🦡" },
+  { n:"Arctic Fox", v:0.031, sp:1.76, d:6, r:"Ultra-Rare", i:"🦊" },
   { n:"Zombie Buffalo", v:0.03, sp:2.02, d:6, r:"Ultra-Rare", i:"🦬" },
+  { n:"Latte Kitsune", v:0.03, sp:1.56, d:6, r:"Legendary", i:"☕" },
   { n:"Skele-Rex", v:0.029, sp:1.58, d:5.5, r:"Legendary", i:"💀" },
   { n:"Silly Duck", v:0.028, sp:0.55, d:7, r:"Uncommon", i:"🦆" },
-  { n:"Polar Bear", v:0.025, sp:0.9, d:6, r:"Rare", i:"🐻‍❄️" },
-  { n:"Swan", v:0.024, sp:0.7, d:6, r:"Rare", i:"🦢" },
+  { n:"Fallow Deer", v:0.027, sp:null, d:5.5, r:"Legendary", i:"🦌" },
   // C Tier
+  { n:"Polar Bear", v:0.025, sp:0.9, d:6, r:"Rare", i:"🐻‍❄️" },
+  { n:"Emperor Gorilla", v:0.025, sp:null, d:5.5, r:"Legendary", i:"🦍" },
+  { n:"Swan", v:0.024, sp:0.7, d:6, r:"Rare", i:"🦢" },
+  { n:"Arctic Dusk Dragon", v:0.024, sp:null, d:5.5, r:"Legendary", i:"🐉" },
+  { n:"Rhino", v:0.024, sp:0.33, d:6, r:"Rare", i:"🦏" },
   { n:"Hyena", v:0.023, sp:1.35, d:6.5, r:"Rare", i:"🐺" },
   { n:"Brown Bear", v:0.022, sp:1.2, d:6, r:"Rare", i:"🐻" },
+  { n:"Glacier Kitsune", v:0.022, sp:null, d:5.5, r:"Legendary", i:"🧊" },
+  { n:"Alley Cat", v:0.02, sp:null, d:5.5, r:"Ultra-Rare", i:"🐱" },
+  { n:"Aurora Fox", v:0.019, sp:null, d:5.5, r:"Legendary", i:"🦊" },
   { n:"Dancing Dragon", v:0.018, sp:0.93, d:6, r:"Legendary", i:"💃" },
+  { n:"Christmas Pudding Pup", v:0.017, sp:null, d:5.5, r:"Ultra-Rare", i:"🎄" },
+  { n:"Diamond Hamster", v:0.014, sp:null, d:5, r:"Legendary", i:"💎" },
   { n:"Lavender Dragon", v:0.013, sp:0.69, d:5.5, r:"Legendary", i:"💜" },
-  { n:"Queen Bee", v:0.01, sp:0.66, d:5.5, r:"Legendary", i:"👑" },
-  { n:"Wild Boar", v:0.008, sp:0.35, d:5.5, r:"Uncommon", i:"🐗" },
-  { n:"Golden Rat", v:0.008, sp:0.52, d:5, r:"Legendary", i:"🐀" },
-  { n:"Diamond Unicorn", v:0.006, sp:0.2, d:5.5, r:"Legendary", i:"💎" },
-  { n:"Kitsune", v:0.006, sp:0.37, d:5, r:"Legendary", i:"🦊" },
-  { n:"Diamond Dragon", v:0.005, sp:0.1, d:5, r:"Legendary", i:"💠" },
-  { n:"Rhino", v:0.024, sp:0.33, d:6, r:"Rare", i:"🦏" },
-  { n:"Chicken", v:0.01, sp:0.5, d:6, r:"Common", i:"🐔" },
-  { n:"Drake", v:0.008, sp:0.3, d:5, r:"Uncommon", i:"🦎" },
+  { n:"Hero Gibbon", v:0.012, sp:null, d:5, r:"Legendary", i:"🐒" },
   { n:"Ninja Monkey", v:0.012, sp:0.57, d:6, r:"Legendary", i:"🥷" },
+  { n:"Glormy Hound", v:0.011, sp:null, d:5, r:"Legendary", i:"🐕" },
+  { n:"Tree Kangaroo", v:0.011, sp:null, d:5, r:"Legendary", i:"🦘" },
+  { n:"Queen Bee", v:0.01, sp:0.66, d:5.5, r:"Legendary", i:"👑" },
+  { n:"Chicken", v:0.01, sp:0.5, d:6, r:"Common", i:"🐔" },
   { n:"Shark", v:0.01, sp:0.51, d:5.5, r:"Legendary", i:"🦈" },
   { n:"Octopus", v:0.01, sp:0.21, d:5.5, r:"Legendary", i:"🐙" },
+  { n:"Wild Boar", v:0.008, sp:0.35, d:5.5, r:"Uncommon", i:"🐗" },
+  { n:"Golden Rat", v:0.008, sp:0.52, d:5, r:"Legendary", i:"🐀" },
+  { n:"Drake", v:0.008, sp:0.3, d:5, r:"Uncommon", i:"🦎" },
+  { n:"Capybara", v:0.008, sp:0.59, d:5.5, r:"Uncommon", i:"🦫" },
+  { n:"Black Panther", v:0.008, sp:0.53, d:5.5, r:"Uncommon", i:"🐆" },
+  { n:"Llama", v:0.008, sp:0.76, d:5.5, r:"Ultra-Rare", i:"🦙" },
+  { n:"Reindeer", v:0.008, sp:0.27, d:5.5, r:"Rare", i:"🫎" },
+  { n:"Corn Doggo", v:0.008, sp:null, d:5, r:"Legendary", i:"🌽" },
+  { n:"Royal Capuchin Monkey", v:0.007, sp:null, d:5, r:"Legendary", i:"🐒" },
+  { n:"Princess Capuchin Monkey", v:0.007, sp:null, d:5, r:"Legendary", i:"👸" },
+  { n:"Gargoyle", v:0.007, sp:null, d:5, r:"Legendary", i:"🗿" },
+  { n:"Diamond Unicorn", v:0.006, sp:0.2, d:5.5, r:"Legendary", i:"💎" },
+  { n:"Kitsune", v:0.006, sp:0.37, d:5, r:"Legendary", i:"🦊" },
+  { n:"Golden Hamster", v:0.006, sp:null, d:5, r:"Legendary", i:"🐹" },
+  { n:"Nautilus", v:0.006, sp:null, d:5, r:"Ultra-Rare", i:"🐚" },
+  { n:"Diamond Dragon", v:0.005, sp:0.1, d:5, r:"Legendary", i:"💠" },
   { n:"Cerberus", v:0.005, sp:0.5, d:5, r:"Legendary", i:"🐕‍🦺" },
   { n:"Axolotl", v:0.005, sp:0.42, d:5.5, r:"Legendary", i:"🪷" },
   { n:"Cobra", v:0.005, sp:0.12, d:5, r:"Legendary", i:"🐍" },
@@ -87,20 +125,19 @@ const P = [
   { n:"Snow Owl", v:0.005, sp:0.22, d:5.5, r:"Legendary", i:"🦉" },
   { n:"Ice Golem", v:0.005, sp:0.53, d:5.5, r:"Legendary", i:"🏔️" },
   { n:"Chameleon", v:0.005, sp:0.21, d:5.5, r:"Legendary", i:"🦎" },
+  { n:"Lamb", v:0.005, sp:0.87, d:5.5, r:"Ultra-Rare", i:"🐑" },
+  { n:"Puffin", v:0.005, sp:1.39, d:6, r:"Ultra-Rare", i:"🐧" },
+  { n:"Musk Ox", v:0.005, sp:0.07, d:5, r:"Rare", i:"🐂" },
+  { n:"Hawk", v:0.005, sp:null, d:5, r:"Legendary", i:"🦅" },
+  { n:"Fire Mare", v:0.005, sp:null, d:5, r:"Legendary", i:"🔥" },
+  { n:"Billy Goat", v:0.005, sp:null, d:5, r:"Legendary", i:"🐐" },
+  { n:"Evil Chick", v:0.005, sp:null, d:5, r:"Legendary", i:"🐤" },
   { n:"Unicorn", v:0.004, sp:0.8, d:6, r:"Legendary", i:"🦄" },
   { n:"T-Rex", v:0.004, sp:0.65, d:6, r:"Legendary", i:"🦖" },
   { n:"Dodo", v:0.004, sp:0.55, d:5.5, r:"Legendary", i:"🦤" },
   { n:"Phoenix", v:0.004, sp:0.72, d:5.5, r:"Legendary", i:"🔥" },
-  { n:"Dragon", v:0.003, sp:0.5, d:5.5, r:"Legendary", i:"🐲" },
-  { n:"Capybara", v:0.008, sp:0.59, d:5.5, r:"Uncommon", i:"🦫" },
-  { n:"Black Panther", v:0.008, sp:0.53, d:5.5, r:"Uncommon", i:"🐆" },
-  { n:"Llama", v:0.008, sp:0.76, d:5.5, r:"Ultra-Rare", i:"🦙" },
-  { n:"Lamb", v:0.005, sp:0.87, d:5.5, r:"Ultra-Rare", i:"🐑" },
-  { n:"Puffin", v:0.005, sp:1.39, d:6, r:"Ultra-Rare", i:"🐧" },
-  { n:"Arctic Fox", v:0.005, sp:1.91, d:6, r:"Ultra-Rare", i:"🦊" },
-  { n:"Reindeer", v:0.008, sp:0.27, d:5.5, r:"Rare", i:"🫎" },
-  { n:"Musk Ox", v:0.005, sp:0.07, d:5, r:"Rare", i:"🐂" },
   { n:"Chick", v:0.004, sp:0.1, d:5, r:"Common", i:"🐥" },
+  { n:"Dragon", v:0.003, sp:0.5, d:5.5, r:"Legendary", i:"🐲" },
   { n:"Wolf", v:0.003, sp:0.05, d:5, r:"Uncommon", i:"🐺" },
   { n:"Snowman", v:0.002, sp:0.05, d:4.5, r:"Uncommon", i:"⛄" },
   { n:"Monkey", v:0.002, sp:0.05, d:4.5, r:"Uncommon", i:"🐒" },
@@ -112,25 +149,18 @@ const P = [
   { n:"Fly Potion", v:0.02, sp:1.0, d:10, r:"Item", i:"💊" },
 ];
 
-// Flatten — each pet is one row (no variants for now, values are for default/FR)
-const ALL = P.filter(p => p.sp !== null).map(p => ({
-  name: p.n, sp: p.sp, v: p.v, demand: p.d, rarity: p.r, img: p.i,
-  label: p.n,
-}));
+const ALL = P.filter(p => p.sp !== null).map(p => ({ name: p.n, sp: p.sp, v: p.v, demand: p.d, rarity: p.r, img: p.i, label: p.n }));
+const allForTrade = P.map(p => ({ name: p.n, sp: p.sp, v: p.v, demand: p.d, rarity: p.r, img: p.i, label: p.n }));
+const FROST_SP = 83.3;
 
-const FROST_SP = P.find(p => p.n === "Frost Dragon")?.sp || 83.3;
-
-function Picker({ side, items, onAdd, onRemove, onQty, allPets }) {
+function Picker({ side, items, onAdd, onRemove, onQty }) {
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
-  const filtered = q.length >= 2 ? allPets.filter(p => p.label.toLowerCase().includes(q.toLowerCase())).slice(0, 12) : [];
+  const filtered = q.length >= 2 ? allForTrade.filter(p => p.label.toLowerCase().includes(q.toLowerCase())).slice(0, 12) : [];
   const total = items.reduce((s, i) => s + i.v * i.qty, 0);
   const isGive = side === "give";
-  useEffect(() => {
-    const h = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
-    document.addEventListener("mousedown", h); return () => document.removeEventListener("mousedown", h);
-  }, []);
+  useEffect(() => { const h = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); }; document.addEventListener("mousedown", h); return () => document.removeEventListener("mousedown", h); }, []);
   return (
     <div style={{ flex: 1, minWidth: 260 }}>
       <div style={{ fontWeight: 800, fontSize: 14, color: isGive ? "#E53E3E" : "#38A169", marginBottom: 8 }}>{isGive ? "You're giving" : "You're getting"}</div>
@@ -161,7 +191,7 @@ function Picker({ side, items, onAdd, onRemove, onQty, allPets }) {
           <span style={{ fontSize: 16 }}>{item.img}</span>
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 700, fontSize: 12 }}>{item.name}</div>
-            <div style={{ fontSize: 10, color: "#A0AEC0" }}>{item.v} Frosts · €{item.sp?.toFixed(2) || "?"}</div>
+            <div style={{ fontSize: 10, color: "#A0AEC0" }}>{item.v} Frosts{item.sp ? ` · €${item.sp.toFixed(2)}` : ""}</div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
             <button onClick={() => onQty(i, -1)} style={qb}>−</button>
@@ -189,9 +219,6 @@ export default function App() {
   const [search, setSearch] = useState("");
   const [sortDeals, setSortDeals] = useState("bargain");
 
-  // Use all pets including those without StarPets prices for trade checker
-  const allPetsForTrade = P.map(p => ({ name: p.n, sp: p.sp, v: p.v, demand: p.d, rarity: p.r, img: p.i, label: p.n }));
-
   const addTrade = (side, pet) => {
     const setter = side === "give" ? setGiveItems : setGetItems;
     const items = side === "give" ? giveItems : getItems;
@@ -210,9 +237,8 @@ export default function App() {
 
   const deals = useMemo(() => {
     let list = ALL.filter(p => !search || p.label.toLowerCase().includes(search.toLowerCase()));
-    const vpe = p => p.v / p.sp;
     list.sort((a, b) => {
-      if (sortDeals === "bargain") return vpe(b) - vpe(a);
+      if (sortDeals === "bargain") return (b.v / b.sp) - (a.v / a.sp);
       if (sortDeals === "price") return a.sp - b.sp;
       if (sortDeals === "value") return b.v - a.v;
       if (sortDeals === "demand") return b.demand - a.demand;
@@ -227,7 +253,7 @@ export default function App() {
       <div style={{ background: "linear-gradient(135deg, #FDF2F8, #FCE7F3, #FAE8FF)", borderBottom: "2px solid #F9A8D4", padding: "18px 20px 12px" }}>
         <div style={{ maxWidth: 960, margin: "0 auto" }}>
           <h1 style={{ fontFamily: "'Fredoka One', cursive", fontSize: 22, margin: 0, background: "linear-gradient(90deg, #EC4899, #A855F7, #6366F1)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Dottie's Adopt Me! Trading Tool</h1>
-          <p style={{ margin: "2px 0 0", fontSize: 11, color: "#9F7AEA" }}>90+ pets · AMTV values (live!) + StarPets prices · Updated 2 Apr 2026</p>
+          <p style={{ margin: "2px 0 0", fontSize: 11, color: "#9F7AEA" }}>115 pets · AMTV values (live!) + StarPets prices · Updated 10 Apr 2026</p>
         </div>
       </div>
       <div style={{ maxWidth: 960, margin: "0 auto", padding: "12px 20px 40px" }}>
@@ -236,15 +262,14 @@ export default function App() {
             <button key={k} onClick={() => setTab(k)} style={{ flex: 1, padding: "10px 8px", borderRadius: 8, border: "none", background: tab === k ? "linear-gradient(135deg, #EC4899, #A855F7)" : "transparent", color: tab === k ? "#fff" : "#9F7AEA", fontWeight: 800, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>{l}</button>
           ))}
         </div>
-
         {tab === "trade" && (
           <div>
             <div style={{ background: "#FFFBEB", borderRadius: 10, padding: "10px 14px", marginBottom: 14, border: "1.5px solid #FDE68A", fontSize: 12, color: "#92400E", lineHeight: 1.5 }}>
-              Values from AMTV (Frost Dragon = 1.0). 90+ pets with real StarPets prices!
+              All 115 AMTV pets! Values from AdoptMeTradingValues.com (Frost Dragon = 1.0). StarPets prices where available.
             </div>
             <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 16 }}>
-              <Picker side="give" items={giveItems} onAdd={p => addTrade("give", p)} onRemove={i => removeTrade("give", i)} onQty={(i, d) => qtyChange("give", i, d)} allPets={allPetsForTrade} />
-              <Picker side="get" items={getItems} onAdd={p => addTrade("get", p)} onRemove={i => removeTrade("get", i)} onQty={(i, d) => qtyChange("get", i, d)} allPets={allPetsForTrade} />
+              <Picker side="give" items={giveItems} onAdd={p => addTrade("give", p)} onRemove={i => removeTrade("give", i)} onQty={(i, d) => qtyChange("give", i, d)} />
+              <Picker side="get" items={getItems} onAdd={p => addTrade("get", p)} onRemove={i => removeTrade("get", i)} onQty={(i, d) => qtyChange("get", i, d)} />
             </div>
             {verdict && (
               <div style={{ background: verdict === "WIN" ? "linear-gradient(135deg, #F0FFF4, #E6FFFA)" : verdict === "LOSE" ? "linear-gradient(135deg, #FFF5F5, #FED7E2)" : "linear-gradient(135deg, #FFFBEB, #FEF3C7)", borderRadius: 16, padding: "20px 24px", textAlign: "center", border: `2px solid ${verdict === "WIN" ? "#9AE6B4" : verdict === "LOSE" ? "#FEB2B2" : "#FDE68A"}` }}>
@@ -252,8 +277,8 @@ export default function App() {
                 <div style={{ fontFamily: "'Fredoka One', cursive", fontSize: 36, color: vc }}>{verdict}!</div>
                 <div style={{ fontSize: 14, marginTop: 4 }}>Giving: <strong>{gT.toFixed(3)} Frosts</strong> → Getting: <strong>{rT.toFixed(3)} Frosts</strong></div>
                 <div style={{ fontSize: 13, fontWeight: 700, color: vc, marginTop: 4 }}>
-                  {verdict === "WIN" && `You gain +${diff.toFixed(3)} Frosts (≈ €${(diff * FROST_SP).toFixed(2)} value)`}
-                  {verdict === "LOSE" && `You lose ${Math.abs(diff).toFixed(3)} Frosts (≈ €${(Math.abs(diff) * FROST_SP).toFixed(2)} value) — don't do it!`}
+                  {verdict === "WIN" && `You gain +${diff.toFixed(3)} Frosts`}
+                  {verdict === "LOSE" && `You lose ${Math.abs(diff).toFixed(3)} Frosts — don't do it!`}
                   {verdict === "FAIR" && "Both sides are roughly equal — take it if you want those pets!"}
                 </div>
               </div>
@@ -263,10 +288,9 @@ export default function App() {
             )}
           </div>
         )}
-
         {tab === "deals" && (<>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
-            <input type="text" placeholder="Search 90+ pets..." value={search} onChange={e => setSearch(e.target.value)} style={{ flex: "1 1 200px", background: "#fff", border: "2px solid #E9D8FD", borderRadius: 10, padding: "10px 14px", color: "#4a3f5c", fontSize: 14, outline: "none", fontFamily: "inherit" }} />
+            <input type="text" placeholder="Search 115 pets..." value={search} onChange={e => setSearch(e.target.value)} style={{ flex: "1 1 200px", background: "#fff", border: "2px solid #E9D8FD", borderRadius: 10, padding: "10px 14px", color: "#4a3f5c", fontSize: 14, outline: "none", fontFamily: "inherit" }} />
             <select value={sortDeals} onChange={e => setSortDeals(e.target.value)} style={{ background: "#fff", border: "2px solid #E9D8FD", borderRadius: 10, padding: "10px 12px", color: "#6B46C1", fontSize: 13, fontFamily: "inherit", fontWeight: 600 }}>
               <option value="bargain">Best value/€</option>
               <option value="price">Cheapest</option>
@@ -274,9 +298,9 @@ export default function App() {
               <option value="demand">Highest demand</option>
             </select>
           </div>
-          <div style={{ fontSize: 11, color: "#9F7AEA", marginBottom: 8 }}>{deals.length} pets found</div>
+          <div style={{ fontSize: 11, color: "#9F7AEA", marginBottom: 8 }}>{deals.length} pets with StarPets prices</div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 10 }}>
-            {deals.slice(0, 60).map((pet, idx) => {
+            {deals.slice(0, 80).map((pet, idx) => {
               const bvf = (pet.v / pet.sp) / (1 / FROST_SP);
               return (
                 <div key={idx} style={{ background: "#fff", border: `2px solid ${bvf > 1.5 ? "#9AE6B4" : "#F3E8FF"}`, borderRadius: 14, padding: 12 }}>
@@ -308,11 +332,11 @@ export default function App() {
             })}
           </div>
         </>)}
-
         <div style={{ marginTop: 20, padding: "12px 16px", background: "#fff", borderRadius: 12, fontSize: 11, color: "#A0AEC0", lineHeight: 1.7, border: "2px solid #F3E8FF" }}>
-          <strong style={{ color: "#6B46C1" }}>Accurate values!</strong> All values scraped from AdoptMeTradingValues.com (Frost Dragon = 166 RP = 1.0). StarPets prices from 1-2 Apr 2026. Always double-check before trading! Built by Ian + Dottie 🐾
+          <strong style={{ color: "#6B46C1" }}>Accurate values!</strong> All 115 pets from AdoptMeTradingValues.com (Frost Dragon = 170 RP = 1.0). StarPets prices live. Always double-check with AMVGG before trading! Built by Ian + Dottie 🐾
         </div>
       </div>
     </div>
   );
 }
+
